@@ -12,7 +12,14 @@ from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, overload
 
-from ._cache import CACHE_DISABLED, _SVGCache, cache_key, svg_cache
+from ._cache import (
+    CACHE_DISABLED,
+    GATHERED_KEYS,
+    PYCONIFY_GATHER,
+    _SVGCache,
+    cache_key,
+    svg_cache,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -193,6 +200,7 @@ def svg(
 
     if svg_cache_key in (cache := svg_cache()):
         return cache[svg_cache_key]
+
     if path := _cached_svg_path(svg_cache_key):
         # this will catch cases offline cases where last_modified is not available
         return path.read_bytes()
@@ -215,6 +223,9 @@ def svg(
             f"Search for icons at https://icon-sets.iconify.design?query={name}",
         )
     resp.raise_for_status()
+
+    if PYCONIFY_GATHER:
+        GATHERED_KEYS[f"{prefix}:{name}"] = {k: v for k, v in query_params.items() if v}
 
     # cache response and return
     cache[svg_cache_key] = resp.content

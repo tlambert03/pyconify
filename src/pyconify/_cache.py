@@ -1,12 +1,34 @@
 from __future__ import annotations
 
+import atexit
+import json
 import os
+from collections import defaultdict
 from collections.abc import Iterator, MutableMapping
 from contextlib import suppress
 from pathlib import Path
+from typing import Any
 
 _SVG_CACHE: MutableMapping[str, bytes] | None = None
-PYCONIFY_CACHE: str = os.environ.get("PYCONIFY_CACHE", "")
+PYCONIFY_GATHER: str = os.environ.get("PYCONIFY_GATHER", "")
+GATHERED_KEYS: defaultdict[str, dict[str, Any]] = defaultdict(dict)
+if PYCONIFY_GATHER:
+    # gather mode disables the use of the cache
+    PYCONIFY_CACHE: str = "0"
+    # setup an atexit hook to write all of the observed SVGs the specified file
+    output_file = Path(PYCONIFY_GATHER).expanduser().resolve()
+    if not output_file.suffix:
+        output_file = output_file.with_suffix(".json")
+
+    @atexit.register
+    def write_gathered_svgs() -> None:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        json_str = json.dumps(GATHERED_KEYS, indent=2, sort_keys=True, default=str)
+        output_file.write_text(json_str)
+        print("Gathered pyconify SVGs written to", output_file)
+
+else:
+    PYCONIFY_CACHE = os.environ.get("PYCONIFY_CACHE", "")
 CACHE_DISABLED: bool = PYCONIFY_CACHE.lower() in {"0", "false", "no"}
 
 
